@@ -1,0 +1,182 @@
+/**
+ * This script init a fresh new swarm cluster.
+ */
+
+
+// Cluster DHCP pool as configured in your router.
+def getDhcpPool() {
+    return '192.168.0.' // Change it.
+}
+
+// User used to connect on each Raspberry.
+def getUser() {
+    return 'pirate' // Default HypriotOS user.
+}
+
+/**
+ * This function give the ip address of a node.
+ * @param String nodeNumber (101, 102, etc.).
+ * @return String (The Ip Address).
+ */
+def getNodeIp(String nodeNumber) {
+    return dhcpPool + nodeNumber
+}
+
+/**
+ * Build a command to execute on a host given in parameter.
+ * @param String host ('192.168.0.102' for example)
+ * @param String command ('docker ps' for example)
+ * @return String (The command to execute)
+ */
+def sshFromManagerNode(String host, String command) {
+    return 'ssh ' + user + '@' + host + ' ' + command
+}
+
+/**
+ * Execute ssh command (on the primary node).
+ * TODO: set primary node var as variable.
+ * @param String host ('192.168.0.102' for example)
+ * @param String command (Example : ssh pirate@192.168.0.102 docker service ls)
+ */
+def sendSSHCommand(String host, String command) {
+    try {
+        sh (returnStdout: true, script: 'ssh ' + user + '@192.168.0.101 ' + sshFromManagerNode(host, command))
+    } catch(Exception e) {
+        echo 'Error. Trying to execute command ' + command + '(Exception : ' + e + ')'
+    }
+}
+
+/**
+ * Force a node to leave the Swarm cluster.
+ * @param nodeNumber
+ */
+def forceNodeToLeaveSwarm(String nodeNumber) {
+    String command = 'docker swarm leave -f'
+    String nodeIp = getNodeIp(nodeNumber)
+    echo "Forcing node " + nodeIp + " to leave the Swarm..."
+    sendSSHCommand(nodeIp, command)
+    echo "Node " +  nodeIp + " left the Swarm : DONE"
+}
+
+/**
+ * Create a folder in order to store Docker Registry data.
+ * @param nodeNumber
+ */
+def createDockerRegistryFolder(String nodeNumber) {
+    String command = 'sudo mkdir /mnt/registry'
+    String nodeIp = getNodeIp(nodeNumber)
+    echo "Creating Docker Registry storage Folder on " + nodeIp
+    sendSSHCommand(nodeIp, command)
+    echo "Creation of Docker Registry storage Folder : DONE"
+}
+
+/**
+ * Init a Swarm cluster.
+ * @param nodeNumber
+ */
+def initDockerSwarmCluster(String nodeNumber) {
+    String command = 'docker swarm init'
+    String nodeIp = getNodeIp(nodeNumber)
+    echo "Initializing Swarm Cluster on " + nodeIp
+    sendSSHCommand(nodeIp, command)
+    echo "Initialization of Swarm Cluster : DONE"
+}
+
+/**
+ * Retrieve Swarm token used to join the cluster as a manager or a worker.
+ * @param String nodeNumber (Example : 101)
+ * @param String type (Manager | Worker)
+ * @return String token
+ */
+def retrieveToken(String nodeNumber, String type) {
+    String command = 'docker swarm join-token ' + type + ' -q'
+    String nodeIp = getNodeIp(nodeNumber)
+    echo 'Retrieving ' + type + ' Token from ' + nodeIp
+    String token = sendSSHCommand(nodeIp, command)
+    echo type + ' Token (' + token + ') retrieved : DONE'
+    return token
+}
+
+/**
+ * Add a node to the Swarm cluster.
+ * @param String nodeNumber (Example : 101)
+ * @param String token
+ * @param String managerNumber
+ */
+def addNodeToSwarmCluster(String nodeNumber, String token, String managerNumber) {
+    String managerIp = getNodeIp(managerNumber)
+    String nodeIp = getNodeIp(nodeNumber)
+    String command = 'docker swarm join --token ' + token.trim() + ' ' + managerIp + ':2377'
+    echo "Adding Node " + nodeIp + ' to Swarm Cluster'
+    sendSSHCommand(nodeIp, command)
+    echo "Node " + nodeIp + ' Added to Swarm Cluster : DONE'
+}
+
+/**
+ * Add a label on a specific node, using his name.
+ * @param nodeNumber (Example : 101)
+ * @param nodeName (Example : node-1)
+ */
+def addRegistryLabel(String nodeNumber, String nodeName) {
+    String command = 'docker node update --label-add registry=true ' + nodeName
+    String nodeIp = getNodeIp(nodeNumber)
+    echo "Adding registry label " + nodeName + " to Node " + nodeNumber
+    sendSSHCommand(nodeIp, command)
+    echo "Registry Label " + nodeName +  " added to Node " + nodeNumber + " : DONE"
+}
+
+node {
+    /**
+     * Each row store data for a node.
+     *
+     * NUMBER           :   IP of the node.
+     * MANAGER-GROUP    :   if true, define this node as a Swarm manager.
+     * PRIMARY          :   if true, define this node as the Swarm leader.
+     * NAME             :   Node hostname.
+     */
+    final NODES = [
+            '1' : ['NUMBER': '101', 'MANAGER-GROUP': true, 'PRIMARY': true, 'NAME': 'node-1'],
+            '2' : ['NUMBER': '102', 'MANAGER-GROUP': true, 'PRIMARY': false, 'NAME': 'node-2'],
+            '3' : ['NUMBER': '103', 'MANAGER-GROUP': false, 'PRIMARY': false, 'NAME': 'node-3'],
+            '4' : ['NUMBER': '104', 'MANAGER-GROUP': false, 'PRIMARY': false, 'NAME': 'node-4'],
+            '5' : ['NUMBER': '105', 'MANAGER-GROUP': false, 'PRIMARY': false, 'NAME': 'node-5']
+    ]
+
+    stage('Sanitize Swarm Cluster') {
+        NODES.each {
+            key, value -> forceNodeToLeaveSwarm(value['NUMBER'])
+        }
+    }
+    stage('Init Registry') {
+        NODES.each {
+            key, value -> if(value['PRIMARY']) {
+                createDockerRegistryFolder(value['NUMBER'])
+            }
+        }
+    }
+    stage('Init Cluster Swarm') {
+        String managerNumber = ''
+        NODES.each {
+            key, value -> if(value['PRIMARY']) {
+                initDockerSwarmCluster(value['NUMBER'])
+                managerNumber = value['NUMBER']
+            } else {
+                String token
+                if(value['MANAGER-GROUP']) {
+                    token = retrieveToken(managerNumber, "manager")
+                } else {
+                    token = retrieveToken(managerNumber, "worker")
+                }
+                addNodeToSwarmCluster(value['NUMBER'], token, managerNumber)
+            }
+        }
+    }
+    stage('Add Registry Label') {
+        NODES.each {
+            key, value -> if(value['PRIMARY']) {
+                addRegistryLabel(value['NUMBER'], value['NAME'])
+            }
+        }
+    }
+}
+
