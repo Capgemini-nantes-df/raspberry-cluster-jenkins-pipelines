@@ -204,14 +204,6 @@ node {
     }
   }
 
-  stage('Launch Docker Registry Service') {
-    NodeInfoMap.each {
-      key, value -> if(value['PRIMARY']) {
-        launchDockerRegistryService(value['NUMBER'])
-      }
-    }
-  }
-
   stage('Launch LED Monitoring Service') {
     NodeInfoMap.each {
       key, value -> if(value['PRIMARY']) {
