@@ -1,0 +1,82 @@
+/**
+ * This script launch a second service (codename blue) to demonstrate blue green deployment
+ * (with two services, one blue and one green).
+ */
+
+// Cluster DHCP pool as configured in your router.
+def getDhcpPool() {
+  return '192.168.0.' // Change it.
+}
+
+// User used to connect on each Raspberry.
+def getUser() {
+  return 'pirate' // Default HypriotOS user.
+}
+
+// Slave registry URL.
+def getSlaveRegistryUrl() {
+  return "192.168.0.0:5000" // Change it.
+}
+
+/**
+ * This function give the ip address of a node.
+ * @param String nodeNumber
+ *    The node we want to execute action (ie: 101, 102, etc.)
+ * @return String
+ *    The Ip Address.
+ */
+def getNodeIp(String nodeNumber) {
+  return dhcpPool + nodeNumber
+}
+
+/**
+ * Execute ssh command (on the primary node).
+ * TODO: set primary node var as variable.
+ * @param String host
+ *    '192.168.0.102' for example.
+ * @param String command
+ *    Example : ssh pirate@192.168.0.102 docker service ls
+ */
+def sendSSHCommand(String host, String command) {
+  try {
+    sh (returnStdout: true, script: 'ssh ' + user + '@192.168.0.101 ' + sshFromManagerNode(host, command))
+  } catch(Exception e) {
+    echo 'Error. Trying to execute command ' + command + '(Exception : ' + e + ')'
+  }
+}
+
+def createService(String nodeNumber) {
+  def nodeIp = getNodeIp(nodeNumber);
+  def command = "docker service create -d -p 82:80 --replicas 20 --restart-condition any --limit-memory 20M --name resto-v2 --network " +
+      "frontnetwork --with-registry-auth " + slaveRegistryUrl + "/resto:blue"
+  echo 'Creating Website v2 Services on node ' + nodeNumber
+  sendSSHCommand(nodeIp, command)
+  echo 'Website v2 Services created : DONE'
+}
+
+node {
+  /**
+   * Each row store data for a node.
+   *
+   * NUMBER           :   IP of the node.
+   * MANAGER-GROUP    :   if true, define this node as a Swarm manager.
+   * PRIMARY          :   if true, define this node as the Swarm leader.
+   * NAME             :   Node hostname.
+   */
+  final NodeInfoMap = [
+      '1' : ['NUMBER': '101', 'MANAGER-GROUP': true, 'PRIMARY': true, 'NAME': 'node-1'],
+      '2' : ['NUMBER': '102', 'MANAGER-GROUP': true, 'PRIMARY': false, 'NAME': 'node-2'],
+      '3' : ['NUMBER': '103', 'MANAGER-GROUP': false, 'PRIMARY': false, 'NAME': 'node-3'],
+      '4' : ['NUMBER': '104', 'MANAGER-GROUP': false, 'PRIMARY': false, 'NAME': 'node-4'],
+      '5' : ['NUMBER': '105', 'MANAGER-GROUP': false, 'PRIMARY': false, 'NAME': 'node-5']
+  ]
+
+  stage('Launch v2 service deployment') {
+    NodeInfoMap.each {
+      key, value ->
+        if (value['PRIMARY']) {
+          createService(value['NUMBER'])
+        }
+    }
+  }
+}
