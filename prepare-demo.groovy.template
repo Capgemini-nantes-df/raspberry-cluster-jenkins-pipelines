@@ -79,9 +79,9 @@ def retrieveAllServices(String nodeNumber) {
 
 /**
  * Remove all running services
- * @param nodeNumber
+ * @param String nodeNumber
  *    The node we want to execute action (ie: 101, 102, etc.)
- * @param services
+ * @param String services
  *    List of services ID.
  */
 def removeAllServices(String nodeNumber, String services) {
@@ -94,7 +94,7 @@ def removeAllServices(String nodeNumber, String services) {
 
 /**
  * Create a docker network for the services.
- * @param nodeNumber
+ * @param String nodeNumber
  *    The node we want to execute action (ie: 101, 102, etc.)
  */
 def initContainerNetwork(String nodeNumber) {
@@ -107,7 +107,7 @@ def initContainerNetwork(String nodeNumber) {
 
 /**
  * Launch portainer service.
- * @param nodeNumber
+ * @param String nodeNumber
  *    The node we want to execute action (ie: 101, 102, etc.)
  */
 def launchPortainerService(String nodeNumber) {
@@ -121,7 +121,7 @@ def launchPortainerService(String nodeNumber) {
 
 /**
  * Launch LED monitoring service.
- * @param nodeNumber
+ * @param String nodeNumber
  *    The node we want to execute action (ie: 101, 102, etc.)
  */
 def launchLEDMonitoringService(String nodeNumber) {
@@ -135,7 +135,7 @@ def launchLEDMonitoringService(String nodeNumber) {
 
 /**
  * Launch cluster monitoring service.
- * @param nodeNumber
+ * @param String nodeNumber
  *    The node we want to execute action (ie: 101, 102, etc.)
  */
 def launchClusterMonitoringService(String nodeNumber) {
@@ -149,7 +149,7 @@ def launchClusterMonitoringService(String nodeNumber) {
 
 /**
  * Launch website service.
- * @param nodeNumber
+ * @param String nodeNumber
  *    The node we want to execute action (ie: 101, 102, etc.)
  */
 def launchWebsiteService(String nodeNumber) {
@@ -171,7 +171,7 @@ node {
    * PRIMARY          :   if true, define this node as the Swarm leader.
    * NAME             :   Node hostname.
    */
-  final NODES = [
+  final NodeInfoMap = [
       '1' : ['NUMBER': '101', 'MANAGER-GROUP': true, 'PRIMARY': true, 'NAME': 'node-1'],
       '2' : ['NUMBER': '102', 'MANAGER-GROUP': true, 'PRIMARY': false, 'NAME': 'node-2'],
       '3' : ['NUMBER': '103', 'MANAGER-GROUP': false, 'PRIMARY': false, 'NAME': 'node-3'],
