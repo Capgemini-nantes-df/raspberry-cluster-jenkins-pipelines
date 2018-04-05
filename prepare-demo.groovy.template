@@ -1,0 +1,239 @@
+/**
+ * This script launch basic services in order to prepare the demo.
+ */
+
+// Cluster DHCP pool as configured in your router.
+def getDhcpPool() {
+  return '192.168.0.' // Change it.
+}
+
+// User used to connect on each Raspberry.
+def getUser() {
+  return 'pirate' // Default HypriotOS user.
+}
+
+// Slave registry URL.
+def getSlaveRegistryUrl() {
+  return "192.168.0.0:5000" // Change it.
+}
+
+/**
+ * This function give the ip address of a node.
+ * @param String nodeNumber
+ *    The node we want to execute action (ie: 101, 102, etc.)
+ * @return String
+ *    The Ip Address.
+ */
+def getNodeIp(String nodeNumber) {
+  return dhcpPool + nodeNumber
+}
+
+/**
+ * Build a command to execute on a host given in parameter.
+ * @param String host
+ *    '192.168.0.102' for example
+ * @param String command
+ *    'docker ps' for example
+ * @return String
+ *    The command to execute
+ */
+def sshFromManagerNode(String host, String command) {
+  return 'ssh ' + user + '@' + host + ' ' + command
+}
+
+/**
+ * Execute ssh command (on the primary node).
+ * TODO: set primary node var as variable.
+ * @param String host
+ *    '192.168.0.102' for example.
+ * @param String command
+ *    Example : ssh pirate@192.168.0.102 docker service ls
+ */
+def sendSSHCommand(String host, String command) {
+  try {
+    sh (returnStdout: true, script: 'ssh ' + user + '@192.168.0.101 ' + sshFromManagerNode(host, command))
+  } catch(Exception e) {
+    echo 'Error. Trying to execute command ' + command + '(Exception : ' + e + ')'
+  }
+}
+
+/**
+ * Retrieve running services ID.
+ * @param String nodeNumber
+ *    The node we want to execute action (ie: 101, 102, etc.)
+ * @return String
+ *    List of services ID.
+ */
+def retrieveAllServices(String nodeNumber) {
+  def nodeIp = getNodeIp(nodeNumber)
+  def command = 'docker service ls -q'
+  echo 'Retrieving All Services for node ' + nodeNumber
+
+  // Get all services.
+  def services = sendSSHCommand(nodeIp, command)
+  services = services.replaceAll("\\n", " ").replaceAll("\\r", " ")
+
+  echo 'All Services on node ' + nodeNumber + ' : ' + services
+  return services
+}
+
+/**
+ * Remove all running services
+ * @param nodeNumber
+ *    The node we want to execute action (ie: 101, 102, etc.)
+ * @param services
+ *    List of services ID.
+ */
+def removeAllServices(String nodeNumber, String services) {
+  def nodeIp = getNodeIp(nodeNumber)
+  def command = 'docker service rm ' + services
+  echo 'Removing All services on node ' + nodeNumber
+  sendSSHCommand(nodeIp, command)
+  echo 'All Services Removed : DONE'
+}
+
+/**
+ * Create a docker network for the services.
+ * @param nodeNumber
+ *    The node we want to execute action (ie: 101, 102, etc.)
+ */
+def initContainerNetwork(String nodeNumber) {
+  def nodeIp = getNodeIp(nodeNumber)
+  def command = 'docker network create --driver overlay frontnetwork'
+  echo 'Creating Containers Network on node ' + nodeNumber
+  sendSSHCommand(nodeIp, command)
+  echo 'Containers Network created : DONE'
+}
+
+/**
+ * Launch portainer service.
+ * @param nodeNumber
+ *    The node we want to execute action (ie: 101, 102, etc.)
+ */
+def launchPortainerService(String nodeNumber) {
+  def nodeIp = getNodeIp(nodeNumber)
+  def command = "docker service create -d --name portainer --publish 9000:9000 --replicas=1 --constraint=node.role==manager --mount " +
+      "type=bind,src=//var/run/docker.sock,dst=/var/run/docker.sock portainer/portainer -H unix:///var/run/docker.sock"
+  echo 'Creating Portainer Service on node ' + nodeNumber
+  sendSSHCommand(nodeIp, command)
+  echo 'Portainer Service created : DONE'
+}
+
+/**
+ * Launch LED monitoring service.
+ * @param nodeNumber
+ *    The node we want to execute action (ie: 101, 102, etc.)
+ */
+def launchLEDMonitoringService(String nodeNumber) {
+  def nodeIp = getNodeIp(nodeNumber)
+  def command = "docker service create -d --name led-manager --mode global --restart-condition any --mount type=bind,src=/sys,dst=/sys " +
+      "--mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock --with-registry-auth " + slaveRegistryUrl + "/led-manager"
+  echo 'Creating LED Monitoring Service on node ' + nodeNumber
+  sendSSHCommand(nodeIp, command)
+  echo 'LED Monitoring Service created : DONE'
+}
+
+/**
+ * Launch cluster monitoring service.
+ * @param nodeNumber
+ *    The node we want to execute action (ie: 101, 102, etc.)
+ */
+def launchClusterMonitoringService(String nodeNumber) {
+  def nodeIp = getNodeIp(nodeNumber)
+  def command = "docker service create -d --name swarm-vizu_1_1_0 --publish=8080:8080/tcp --constraint=node.role==manager --mount=type=bind," +
+      "src=/var/run/docker.sock,dst=/var/run/docker.sock --with-registry-auth " + slaveRegistryUrl + "/swarm-vizu:1.1.0"
+  echo 'Creating Cluster Monitoring Service on node ' + nodeNumber
+  sendSSHCommand(nodeIp, command)
+  echo 'Cluster Monitoring Service created : DONE'
+}
+
+/**
+ * Launch website service.
+ * @param nodeNumber
+ *    The node we want to execute action (ie: 101, 102, etc.)
+ */
+def launchWebsiteService(String nodeNumber) {
+  def nodeIp = getNodeIp(nodeNumber)
+  def command = "docker service create -d --name resto-v1 -p 81:80 --replicas 16 --restart-condition any --limit-memory 20M --network " +
+      "frontnetwork --with-registry-auth " + slaveRegistryUrl + "/resto:blue"
+  echo 'Creating Website Service on node ' + nodeNumber
+  sendSSHCommand(nodeIp, command)
+  echo 'Cluster Website Service created : DONE'
+}
+
+node {
+
+  /**
+   * Each row store data for a node.
+   *
+   * NUMBER           :   IP of the node.
+   * MANAGER-GROUP    :   if true, define this node as a Swarm manager.
+   * PRIMARY          :   if true, define this node as the Swarm leader.
+   * NAME             :   Node hostname.
+   */
+  final NODES = [
+      '1' : ['NUMBER': '101', 'MANAGER-GROUP': true, 'PRIMARY': true, 'NAME': 'node-1'],
+      '2' : ['NUMBER': '102', 'MANAGER-GROUP': true, 'PRIMARY': false, 'NAME': 'node-2'],
+      '3' : ['NUMBER': '103', 'MANAGER-GROUP': false, 'PRIMARY': false, 'NAME': 'node-3'],
+      '4' : ['NUMBER': '104', 'MANAGER-GROUP': false, 'PRIMARY': false, 'NAME': 'node-4'],
+      '5' : ['NUMBER': '105', 'MANAGER-GROUP': false, 'PRIMARY': false, 'NAME': 'node-5']
+  ]
+
+  stage('Sanitize Services') {
+    NodeInfoMap.each {
+      key, value -> if(value['PRIMARY']) {
+        String services = retrieveAllServices(value['NUMBER'])
+        removeAllServices(value['NUMBER'], services)
+      }
+    }
+  }
+
+  stage('Init Container Network') {
+    NodeInfoMap.each {
+      key, value -> if(value['PRIMARY']) {
+        initContainerNetwork(value['NUMBER'])
+      }
+    }
+  }
+
+  stage('Launch Portainer Service') {
+    NodeInfoMap.each {
+      key, value -> if(value['PRIMARY']) {
+        launchPortainerService(value['NUMBER'])
+      }
+    }
+  }
+
+  stage('Launch Docker Registry Service') {
+    NodeInfoMap.each {
+      key, value -> if(value['PRIMARY']) {
+        launchDockerRegistryService(value['NUMBER'])
+      }
+    }
+  }
+
+  stage('Launch LED Monitoring Service') {
+    NodeInfoMap.each {
+      key, value -> if(value['PRIMARY']) {
+        launchLEDMonitoringService(value['NUMBER'])
+      }
+    }
+  }
+
+  stage('Launch Cluster Monitoring Service') {
+    NodeInfoMap.each {
+      key, value -> if(value['PRIMARY']) {
+        launchClusterMonitoringService(value['NUMBER'])
+      }
+    }
+  }
+
+  stage('Launch Website Service') {
+    NodeInfoMap.each {
+      key, value -> if(value['PRIMARY']) {
+        launchWebsiteService(value['NUMBER'])
+      }
+    }
+  }
+
+}
