@@ -1,3 +1,0 @@
-.idea/
-# Do not commit groovy files when they contains sensitive data.
-*.groovy
