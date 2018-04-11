@@ -2,15 +2,24 @@
  * This script defines globals methods and environment vars used by pipelines 
  */
 
-// Environment variables.
+// Cluster variables.
 RPI_USER = 'pirate' // User used to connect on each Raspberry.
 DHCP_POOL = '192.168.0.' // Cluster DHCP pool as configured in your router.
-MASTER_REGISTRY_URL = 'xxxxxxxxxxxxxxxxxxxxxx' // Private master registry URL. Don't add protocol (http:// || https://).
-MASTER_REGISTRY_LOGIN = 'xxxxxxxxxxxxxxxxxxxxxxxxxx'
-MASTER_REGISTRY_PASSWORD = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-SLAVE_REGISTRY_URL = '192.168.0.101:80'
-DOCKER_REGISTRY_IMAGE_ARM = 'armbuild/registry:2'
 MASTER_NODE_IP = "192.168.0.101"
+
+// Registry parameters.
+MASTER_REGISTRY_URL = 'VALUE' // Master registry URL. Don't add protocol (http:// || https://).
+MASTER_REGISTRY_LOGIN = 'VALUE'
+MASTER_REGISTRY_PASSWORD = 'VALUE'
+SLAVE_REGISTRY_URL = '192.168.0.101:80'
+
+// Images parameters.
+DOCKER_REGISTRY_IMAGE_ARM = 'armbuild/registry:2'
+WEBSITE_IMAGE_NAME = 'VALUE'
+// Tag for the "WEBSITE_IMAGE_NAME". (ie :  [WEBSITE_IMAGE_NAME]:[WEBSITE_OLD_VERSION])
+WEBSITE_OLD_VERSION = 'VALUE'
+WEBSITE_NEW_VERSION = 'VALUE'
+WEBSITE_CORRUPTED_VERSION = 'VALUE' // Special version designed to fail when service start.
 
 /**
   * Nodes list.
@@ -27,11 +36,11 @@ NODES_DATA = [
   * List of images used.
   */
 REGISTRY_IMAGES = [
-    '1' : ['IMAGE_NAME': 'resto:blue'],
-    '2' : ['IMAGE_NAME': 'resto:orange'],
-    '3' : ['IMAGE_NAME': 'resto:green'],
+    '1' : ['IMAGE_NAME': WEBSITE_IMAGE_NAME + ':' + WEBSITE_OLD_VERSION],
+    '2' : ['IMAGE_NAME': WEBSITE_IMAGE_NAME + ':' + WEBSITE_NEW_VERSION],
+    '3' : ['IMAGE_NAME': WEBSITE_IMAGE_NAME + ':' + WEBSITE_CORRUPTED_VERSION],
     '4' : ['IMAGE_NAME': 'led-manager:latest'],
-    '5' : ['IMAGE_NAME': 'swarm-vizu:1.1.0']
+    '5' : ['IMAGE_NAME': 'swarm-dashboard:latest']
 ]
 
 /**
