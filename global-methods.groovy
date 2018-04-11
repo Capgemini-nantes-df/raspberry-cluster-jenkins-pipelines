@@ -5,7 +5,7 @@
 // Cluster variables.
 RPI_USER = 'pirate' // User used to connect on each Raspberry.
 DHCP_POOL = '192.168.0.' // Cluster DHCP pool as configured in your router.
-MASTER_NODE_IP = "192.168.0.101"
+MASTER_NODE_IP = '192.168.0.101'
 
 // Registry parameters.
 MASTER_REGISTRY_URL = 'VALUE' // Master registry URL. Don't add protocol (http:// || https://).
@@ -15,11 +15,11 @@ SLAVE_REGISTRY_URL = '192.168.0.101:80'
 
 // Images parameters.
 DOCKER_REGISTRY_IMAGE_ARM = 'armbuild/registry:2'
-WEBSITE_IMAGE_NAME = 'VALUE'
+WEBSITE_IMAGE_NAME = 'resto'
 // Tag for the "WEBSITE_IMAGE_NAME". (ie :  [WEBSITE_IMAGE_NAME]:[WEBSITE_OLD_VERSION])
-WEBSITE_OLD_VERSION = 'VALUE'
-WEBSITE_NEW_VERSION = 'VALUE'
-WEBSITE_CORRUPTED_VERSION = 'VALUE' // Special version designed to fail when service start.
+WEBSITE_OLD_VERSION = 'blue'
+WEBSITE_NEW_VERSION = 'green'
+WEBSITE_CORRUPTED_VERSION = 'orange' // Special version designed to fail when service start.
 
 /**
   * Nodes list.
