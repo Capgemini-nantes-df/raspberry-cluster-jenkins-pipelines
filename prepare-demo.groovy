@@ -30,11 +30,11 @@ node {
         "type=bind,src=//var/run/docker.sock,dst=/var/run/docker.sock portainer/portainer -H unix:///var/run/docker.sock")
   }
   stage('Launch Swarm dashboard service'){
-    globalMethods.executeCommandOnPrimaryNode("docker service create -d --name swarm-vizu_1_1_0 --publish=8080:8080/tcp --constraint=node.role==manager --mount=type=bind," +
+    globalMethods.executeCommandOnPrimaryNode("docker service create -d --name swarm-dashboard --publish=8080:8080/tcp --constraint=node.role==manager --mount=type=bind," +
         "src=/var/run/docker.sock,dst=/var/run/docker.sock --with-registry-auth " + globalMethods.SLAVE_REGISTRY_URL + "/swarm-dashboard:latest")
   }
   stage('Launch website at initial version service'){
-    globalMethods.executeCommandOnPrimaryNode("docker service create -d --name resto-v1 -p 81:80 --replicas 16 --restart-condition any --limit-memory 20M --network " +
-        "frontnetwork --with-registry-auth " + globalMethods.SLAVE_REGISTRY_URL + "/" + globalMethods.WEBSITE_IMAGE_NAME + ":" + globalMethods.WEBSITE_OLD_VERSION)
+    globalMethods.executeCommandOnPrimaryNode("docker service create -d --name resto -p 81:80 --replicas 16 --restart-condition any --limit-memory 20M --network " +
+        "frontnetwork --with-registry-auth " + globalMethods.SLAVE_REGISTRY_URL + "/" + globalMethods.WEBSITE_IMAGE_NAME + ":" + globalMethods.WEBSITE_LEGACY_VERSION)
   } 
 }

@@ -16,8 +16,8 @@ SLAVE_REGISTRY_URL = '192.168.0.101:80'
 // Images parameters.
 DOCKER_REGISTRY_IMAGE_ARM = 'armbuild/registry:2'
 WEBSITE_IMAGE_NAME = 'resto'
-// Tag for the "WEBSITE_IMAGE_NAME". (ie :  [WEBSITE_IMAGE_NAME]:[WEBSITE_OLD_VERSION])
-WEBSITE_OLD_VERSION = 'blue'
+// Tag for the "WEBSITE_IMAGE_NAME". (ie :  [WEBSITE_IMAGE_NAME]:[WEBSITE_LEGACY_VERSION])
+WEBSITE_LEGACY_VERSION = 'blue'
 WEBSITE_NEW_VERSION = 'green'
 WEBSITE_CORRUPTED_VERSION = 'orange' // Special version designed to fail when service start.
 
@@ -36,7 +36,7 @@ NODES_DATA = [
   * List of images used.
   */
 REGISTRY_IMAGES = [
-    '1' : ['IMAGE_NAME': WEBSITE_IMAGE_NAME + ':' + WEBSITE_OLD_VERSION],
+    '1' : ['IMAGE_NAME': WEBSITE_IMAGE_NAME + ':' + WEBSITE_LEGACY_VERSION],
     '2' : ['IMAGE_NAME': WEBSITE_IMAGE_NAME + ':' + WEBSITE_NEW_VERSION],
     '3' : ['IMAGE_NAME': WEBSITE_IMAGE_NAME + ':' + WEBSITE_CORRUPTED_VERSION],
     '4' : ['IMAGE_NAME': 'led-manager:latest'],

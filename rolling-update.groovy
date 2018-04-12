@@ -8,6 +8,6 @@ node {
 
   stage('Launch Rolling Update Service') {
     globalMethods.executeCommandOnPrimaryNode("docker service update --image " + globalMethods.SLAVE_REGISTRY_URL + "/" + globalMethods.WEBSITE_IMAGE_NAME + ":" + WEBSITE_NEW_VERSION + " --update-delay 0s --update-parallelism 2 --update-failure-action " +
-        "rollback --update-order start-first resto-v1")
+        "rollback --update-order start-first resto")
   }
 }
